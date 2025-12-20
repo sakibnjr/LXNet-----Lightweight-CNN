@@ -1,0 +1,2 @@
+metric,model_A,model_B,t_statistic,p_value,cohens_d_paired,n_folds
+accuracy,LightXrayNet,InceptionV3,52.761906029054,0.000000772378,23.595841700684,5

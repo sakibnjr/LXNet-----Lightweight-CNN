@@ -1,0 +1,2 @@
+metric,model_A,model_B,t_statistic,p_value,cohens_d_paired,n_folds
+f1_macro,LightXrayNet,InceptionV3,32.184165844983,0.000005556383,14.393196525702,5

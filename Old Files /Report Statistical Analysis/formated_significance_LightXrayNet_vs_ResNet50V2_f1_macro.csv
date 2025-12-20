@@ -1,0 +1,2 @@
+metric,model_A,model_B,t_statistic,p_value,cohens_d_paired,n_folds
+f1_macro,LightXrayNet,ResNet50V2,84.152112069064,0.000000119532,37.633968607322,5

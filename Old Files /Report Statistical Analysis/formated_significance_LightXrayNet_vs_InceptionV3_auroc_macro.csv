@@ -1,0 +1,2 @@
+metric,model_A,model_B,t_statistic,p_value,cohens_d_paired,n_folds
+auroc_macro,LightXrayNet,InceptionV3,30.810591237608,0.000006611611,13.778915286850,5

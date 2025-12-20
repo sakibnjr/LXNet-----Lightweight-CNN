@@ -1,0 +1,2 @@
+metric,model_A,model_B,t_statistic,p_value,cohens_d_paired,n_folds
+accuracy,LightXrayNet,ResNet50V2,48.193968608861,0.000001109009,21.552997982981,5
