@@ -2,8 +2,8 @@ import os
 import cv2
 from tqdm import tqdm
 
-INPUT_FOLDER = "./CLAHE_AUGMENTED_BALANCED"
-OUTPUT_FOLDER = "./RESIZED_AUGMENTED_BALANCED"
+INPUT_FOLDER = "./Dataset/02_AUGMENTED_BALANCED"
+OUTPUT_FOLDER = "./Dataset/03_RESIZED_AUGMENTED_BALANCED"
 TARGET_SIZE = (224, 224)
 
 def resize_images_in_folder(input_dir, output_dir, size=(224, 224), jpeg_quality=100):

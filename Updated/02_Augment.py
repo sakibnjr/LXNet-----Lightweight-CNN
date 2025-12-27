@@ -2,14 +2,14 @@ import os
 import random
 import shutil
 from pathlib import Path
-from typing import List, Tuple
-from PIL import Image, ImageOps, ImageEnhance
+from typing import List
+from PIL import Image, ImageOps
 import numpy as np
 from tqdm import tqdm
 
 # ========= HARD-CODED PATHS =========
-INPUT_DIR = Path("./CLAHE/")
-OUTPUT_DIR = Path("./CLAHE_AUGMENTED_BALANCED/")
+INPUT_DIR = Path("./Dataset/01_CLAHE")
+OUTPUT_DIR = Path("./Dataset/02_AUGMENTED_BALANCED/")
 # ====================================
 
 # ========= SETTINGS =========
@@ -22,9 +22,6 @@ CLEAN_OUTPUT_CLASS_DIRS = True
 ROTATION_RANGE = (-5.0, 5.0)       # Degrees
 ZOOM_RANGE = (1.05, 1.15)          # Zoom in
 TRANSLATION_FACTOR = 0.05          # Max shift 5%
-BRIGHTNESS_RANGE = (0.8, 1.2)      # 80-120%
-CONTRAST_RANGE = (0.8, 1.2)        # 80-120%
-NOISE_SIGMA = 5                    # Gaussian noise level
 
 random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
@@ -65,9 +62,8 @@ def aug_zoom(img: Image.Image) -> Image.Image:
     factor = random.uniform(*ZOOM_RANGE)
     w, h = img.size
     new_w, new_h = int(w * factor), int(h * factor)
-    
+
     img_zoomed = img.resize((new_w, new_h), resample=Image.BILINEAR)
-    
     left = (new_w - w) / 2
     top = (new_h - h) / 2
     return img_zoomed.crop((left, top, left + w, top + h))
@@ -78,41 +74,25 @@ def aug_translate(img: Image.Image) -> Image.Image:
     max_dy = h * TRANSLATION_FACTOR
     dx = random.uniform(-max_dx, max_dx)
     dy = random.uniform(-max_dy, max_dy)
-    
+
     fill = get_median_color(img)
     return img.transform(
-        (w, h), 
-        Image.AFFINE, 
-        (1, 0, -dx, 0, 1, -dy), 
-        resample=Image.BILINEAR, 
+        (w, h),
+        Image.AFFINE,
+        (1, 0, -dx, 0, 1, -dy),
+        resample=Image.BILINEAR,
         fillcolor=fill
     )
 
-def aug_brightness(img: Image.Image) -> Image.Image:
-    enhancer = ImageEnhance.Brightness(img)
-    factor = random.uniform(*BRIGHTNESS_RANGE)
-    return enhancer.enhance(factor)
+def aug_hflip(img: Image.Image) -> Image.Image:
+    return ImageOps.mirror(img)
 
-def aug_contrast(img: Image.Image) -> Image.Image:
-    enhancer = ImageEnhance.Contrast(img)
-    factor = random.uniform(*CONTRAST_RANGE)
-    return enhancer.enhance(factor)
-
-def aug_noise(img: Image.Image) -> Image.Image:
-    arr = np.array(img).astype(float)
-    noise = np.random.normal(0, NOISE_SIGMA, arr.shape)
-    arr_noisy = arr + noise
-    arr_noisy = np.clip(arr_noisy, 0, 255).astype(np.uint8)
-    return Image.fromarray(arr_noisy)
-
-# REMOVED HFLIP FROM THIS LIST
+# ========= AUGMENTATION POOL =========
 AUG_FUNCTIONS = [
     (aug_rotate, "rot"),
     (aug_zoom, "zoom"),
     (aug_translate, "trans"),
-    (aug_brightness, "bright"),
-    (aug_contrast, "cont"),
-    (aug_noise, "noise")
+    (aug_hflip, "hflip")
 ]
 
 def copy_files(paths: List[Path], dst_dir: Path, desc: str):
@@ -139,9 +119,6 @@ def main():
     class_to_imgs = {cdir.name: list_images(cdir) for cdir in class_dirs}
     class_to_imgs = {k: v for k, v in class_to_imgs.items() if v}
 
-    if not class_to_imgs:
-        raise RuntimeError("No images found in any class subfolder.")
-
     print("Input class counts:")
     for cls, imgs in class_to_imgs.items():
         print(f"  - {cls}: {len(imgs)}")
@@ -155,16 +132,11 @@ def main():
         n = len(imgs)
         print(f"\n[{cls}] Input: {n} -> Target: {TARGET_PER_CLASS}")
 
-        if n == TARGET_PER_CLASS:
-            copy_files(imgs, out_dir, desc=f"Copying {cls}")
-            continue
-
-        if n > TARGET_PER_CLASS:
+        if n >= TARGET_PER_CLASS:
             selected = random.sample(imgs, TARGET_PER_CLASS)
-            copy_files(selected, out_dir, desc=f"Downsampling {cls}")
+            copy_files(selected, out_dir, desc=f"Copying {cls}")
             continue
 
-        print(f"[{cls}] Under-represented. Copying originals + Augmenting...")
         copy_files(imgs, out_dir, desc=f"Copying Originals")
 
         need = TARGET_PER_CLASS - n
@@ -173,28 +145,23 @@ def main():
         for _ in tqdm(range(need), desc=f"Augmenting {cls}", unit="img"):
             src_path = random.choice(imgs)
             with Image.open(src_path) as im:
-                if im.mode == 'P':
-                    im = im.convert('RGB')
-                
-                # RANDOMLY SELECT ONE AUGMENTATION
+                if im.mode == "P":
+                    im = im.convert("RGB")
+
                 aug_func, aug_tag = random.choice(AUG_FUNCTIONS)
                 aug_img = aug_func(im)
 
-                stem = src_path.stem
-                ext = src_path.suffix.lower()
-                out_name = f"{stem}__aug_{aug_tag}_{aug_idx:05d}{ext}"
+                out_name = f"{src_path.stem}__aug_{aug_tag}_{aug_idx:05d}{src_path.suffix}"
                 out_path = out_dir / out_name
 
                 while out_path.exists():
                     aug_idx += 1
-                    out_name = f"{stem}__aug_{aug_tag}_{aug_idx:05d}{ext}"
-                    out_path = out_dir / out_name
+                    out_path = out_dir / f"{src_path.stem}__aug_{aug_tag}_{aug_idx:05d}{src_path.suffix}"
 
                 save_image(aug_img, out_path)
                 aug_idx += 1
 
-        final = len(list_images(out_dir))
-        print(f"[{cls}] Done. Final count: {final}")
+        print(f"[{cls}] Done. Final count: {len(list_images(out_dir))}")
 
     print(f"\nAll classes processed. Output at: {OUTPUT_DIR.resolve()}")
 
